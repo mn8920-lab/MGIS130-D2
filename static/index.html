@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Personal Weather Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
+  <div class="max-w-4xl mx-auto space-y-6">
+    
+    <!-- Top Bar / Controls -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700 gap-4">
+      <h1 class="text-xl font-bold tracking-wide text-cyan-400">Weather Pulse</h1>
+      <div class="flex gap-2">
+        <input id="lat" type="text" value="40.7128" placeholder="Lat" class="w-24 px-3 py-1 bg-slate-900 border border-slate-700 rounded text-sm focus:outline-none focus:border-cyan-500">
+        <input id="lon" type="text" value="-74.0060" placeholder="Lon" class="w-24 px-3 py-1 bg-slate-900 border border-slate-700 rounded text-sm focus:outline-none focus:border-cyan-500">
+        <button onclick="fetchWeather()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1 rounded transition font-medium">Search</button>
+      </div>
+    </header>
+
+    <!-- Main Current Conditions Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Primary Current Weather Tile -->
+      <div class="md:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-6 flex flex-col justify-between">
+        <div>
+          <span id="cache-badge" class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-900 text-cyan-300">Live</span>
+          <h2 class="text-slate-400 text-sm mt-3">Current Temperature</h2>
+          <p id="temp" class="text-6xl font-extrabold my-2">--°F</p>
+          <p id="feels-like" class="text-slate-400 text-sm">Feels like --°F</p>
+        </div>
+        <div class="border-t border-slate-700 pt-4 mt-4 grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <p class="text-slate-400">Humidity</p>
+            <p id="humidity" class="font-bold">--%</p>
+          </div>
+          <div>
+            <p class="text-slate-400">Wind Speed</p>
+            <p id="wind" class="font-bold">-- mph</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hourly Forecast Chart -->
+      <div class="md:col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-6">
+        <h3 class="text-sm font-semibold text-slate-300 mb-4">24-Hour Temperature Forecast</h3>
+        <canvas id="hourlyChart" class="w-full h-48"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let chartInstance = null;
+
+    async function fetchWeather() {
+      const lat = document.getElementById('lat').value;
+      const lon = document.getElementById('lon').value;
+
+      try {
+        const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+        const res = await response.json();
+        const data = res.data;
+
+        // Update Source/Cache Badge
+        document.getElementById('cache-badge').innerText = res.source.toUpperCase();
+
+        // Update Current Weather Fields
+        document.getElementById('temp').innerText = `${Math.round(data.current.temperature_2m)}°F`;
+        document.getElementById('feels-like').innerText = `Feels like ${Math.round(data.current.apparent_temperature)}°F`;
+        document.getElementById('humidity').innerText = `${data.current.relative_humidity_2m}%`;
+        document.getElementById('wind').innerText = `${data.current.wind_speed_10m} mph`;
+
+        // Render Hourly Forecast Chart
+        const hourlyTimes = data.hourly.time.slice(0, 24).map(t => t.split('T')[1]);
+        const hourlyTemps = data.hourly.temperature_2m.slice(0, 24);
+
+        if (chartInstance) chartInstance.destroy();
+
+        const ctx = document.getElementById('hourlyChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: hourlyTimes,
+            datasets: [{
+              label: 'Temp (°F)',
+              data: hourlyTemps,
+              borderColor: '#22d3ee',
+              backgroundColor: 'rgba(34, 211, 238, 0.1)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+              y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+
+      } catch (err) {
+        alert('Failed to load weather data');
+      }
+    }
+
+    // Load initial weather on page load
+    fetchWeather();
+  </script>
+</body>
+</html>
