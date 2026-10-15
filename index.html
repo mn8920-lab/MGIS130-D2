@@ -10,23 +10,28 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
   <div class="max-w-4xl mx-auto space-y-6">
     
-    <!-- Top Bar / Controls -->
+    <!-- Header Controls -->
     <header class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700 gap-4">
       <h1 class="text-xl font-bold tracking-wide text-cyan-400">Weather Pulse</h1>
-      <div class="flex gap-2">
-        <input id="lat" type="text" value="40.7128" placeholder="Lat" class="w-24 px-3 py-1 bg-slate-900 border border-slate-700 rounded text-sm focus:outline-none focus:border-cyan-500">
-        <input id="lon" type="text" value="-74.0060" placeholder="Lon" class="w-24 px-3 py-1 bg-slate-900 border border-slate-700 rounded text-sm focus:outline-none focus:border-cyan-500">
-        <button onclick="fetchWeather()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1 rounded transition font-medium">Search</button>
+      <div class="flex gap-2 w-full sm:w-auto">
+        <input id="location-input" type="text" value="Canandaigua" placeholder="City or Lat, Lon" class="px-3 py-1 bg-slate-900 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:border-cyan-500 w-full sm:w-64">
+        <button onclick="handleSearch()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-4 py-1 rounded transition font-medium">Search</button>
       </div>
     </header>
 
-    <!-- Main Current Conditions Grid -->
+    <!-- Error Alert Box -->
+    <div id="error-box" class="hidden bg-rose-900/50 border border-rose-500 text-rose-200 p-3 rounded-lg text-sm"></div>
+
+    <!-- Weather Data Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       
-      <!-- Primary Current Weather Tile -->
+      <!-- Current Condition Card -->
       <div class="md:col-span-1 bg-slate-800 border border-slate-700 rounded-xl p-6 flex flex-col justify-between">
         <div>
-          <span id="cache-badge" class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-900 text-cyan-300">Live</span>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-900 text-cyan-300">Live API</span>
+            <span id="location-label" class="text-xs text-slate-400 font-medium">--</span>
+          </div>
           <h2 class="text-slate-400 text-sm mt-3">Current Temperature</h2>
           <p id="temp" class="text-6xl font-extrabold my-2">--°F</p>
           <p id="feels-like" class="text-slate-400 text-sm">Feels like --°F</p>
@@ -43,7 +48,7 @@
         </div>
       </div>
 
-      <!-- Hourly Forecast Chart -->
+      <!-- 24-Hour Forecast Chart -->
       <div class="md:col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-6">
         <h3 class="text-sm font-semibold text-slate-300 mb-4">24-Hour Temperature Forecast</h3>
         <canvas id="hourlyChart" class="w-full h-48"></canvas>
@@ -55,25 +60,67 @@
   <script>
     let chartInstance = null;
 
-    async function fetchWeather() {
-      const lat = document.getElementById('lat').value;
-      const lon = document.getElementById('lon').value;
+    function showError(msg) {
+      const errBox = document.getElementById('error-box');
+      errBox.innerText = msg;
+      errBox.classList.remove('hidden');
+    }
+
+    function clearError() {
+      const errBox = document.getElementById('error-box');
+      errBox.innerText = '';
+      errBox.classList.add('hidden');
+    }
+
+    async function getCoordinates(query) {
+      // Check if input is already lat, lon numbers
+      const parts = query.split(',').map(s => s.trim());
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        return { lat: parts[0], lon: parts[1], name: `${parts[0]}, ${parts[1]}` };
+      }
+
+      // Geocode City Name via Open-Meteo Geocoding API
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=en&format=json`;
+      const res = await fetch(geoUrl);
+      const data = await res.json();
+
+      if (!data.results || data.results.length === 0) {
+        throw new Error(`Location "${query}" not found. Try entering a valid city or coordinates.`);
+      }
+
+      const loc = data.results[0];
+      return { lat: loc.latitude, lon: loc.longitude, name: `${loc.name}, ${loc.admin1 || loc.country}` };
+    }
+
+    async function handleSearch() {
+      clearError();
+      const input = document.getElementById('location-input').value;
+      if (!input) return;
 
       try {
-        const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
-        const res = await response.json();
-        const data = res.data;
+        const { lat, lon, name } = await getCoordinates(input);
+        document.getElementById('location-label').innerText = name;
+        await fetchWeather(lat, lon);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
 
-        // Update Source/Cache Badge
-        document.getElementById('cache-badge').innerText = res.source.toUpperCase();
+    async function fetchWeather(lat, lon) {
+      const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m&hourly=temperature_2m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
 
-        // Update Current Weather Fields
+      try {
+        const response = await fetch(weatherUrl);
+        if (!response.ok) throw new Error('Failed to retrieve weather data from provider.');
+        const data = await response.json();
+
+        // Update Text Elements
         document.getElementById('temp').innerText = `${Math.round(data.current.temperature_2m)}°F`;
         document.getElementById('feels-like').innerText = `Feels like ${Math.round(data.current.apparent_temperature)}°F`;
         document.getElementById('humidity').innerText = `${data.current.relative_humidity_2m}%`;
         document.getElementById('wind').innerText = `${data.current.wind_speed_10m} mph`;
 
-        // Render Hourly Forecast Chart
+        // Parse Forecast Chart
         const hourlyTimes = data.hourly.time.slice(0, 24).map(t => t.split('T')[1]);
         const hourlyTemps = data.hourly.temperature_2m.slice(0, 24);
 
@@ -104,12 +151,12 @@
         });
 
       } catch (err) {
-        alert('Failed to load weather data');
+        showError(err.message);
       }
     }
 
-    // Load initial weather on page load
-    fetchWeather();
+    // Initial load on startup
+    handleSearch();
   </script>
 </body>
 </html>
