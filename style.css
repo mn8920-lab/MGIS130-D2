@@ -1,4 +1,4 @@
-/* Custom scrollbar utility */
+/* Custom Scrollbar Utility */
 .no-scrollbar::-webkit-scrollbar { 
   display: none; 
 }
@@ -7,56 +7,188 @@
   scrollbar-width: none; 
 }
 
-/* Base Body Styles with Smooth Background Transitions */
+/* Base Body Setup */
 body {
   background-color: #0f172a;
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
+  position: relative;
+  overflow-x: hidden;
   transition: background-image 0.8s ease-in-out, background-color 0.8s ease-in-out;
 }
 
-/* Dynamic Weather Background Overlays (High Quality Unsplash Images) */
+/* Base Pseudo-element Layer for Canvas Animations */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.8s ease-in-out;
+  opacity: 0;
+}
 
-/* Clear / Sunny Day */
+/* ==========================================================================
+   1. CLEAR SUNNY DAY (Breathing Sun Flare Animation)
+   ========================================================================== */
 body.bg-clear-day {
-  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)),
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.65), rgba(15, 23, 42, 0.85)),
     url('https://images.unsplash.com/photo-1601297183305-6df142704ea2?auto=format&fit=crop&w=1920&q=80');
 }
 
-/* Clear Night */
+body.bg-clear-day::before {
+  opacity: 1;
+  background: radial-gradient(circle at 85% 15%, rgba(253, 224, 71, 0.22) 0%, rgba(251, 146, 60, 0.08) 35%, transparent 65%);
+  animation: sunGlow 8s ease-in-out infinite alternate;
+}
+
+@keyframes sunGlow {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0.95;
+  }
+}
+
+/* ==========================================================================
+   2. CLEAR NIGHT (Twinkling Stars Atmosphere)
+   ========================================================================== */
 body.bg-clear-night {
   background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
     url('https://images.unsplash.com/photo-1509773896068-7fd415d91e2b?auto=format&fit=crop&w=1920&q=80');
 }
 
-/* Cloudy / Overcast */
+body.bg-clear-night::before {
+  opacity: 1;
+  background: radial-gradient(circle at 20% 30%, rgba(224, 231, 255, 0.15) 0%, transparent 40%);
+  animation: nightPulse 6s ease-in-out infinite alternate;
+}
+
+@keyframes nightPulse {
+  0% { opacity: 0.3; }
+  100% { opacity: 0.8; }
+}
+
+/* ==========================================================================
+   3. CLOUDY / OVERCAST (Drifting Parallax Clouds)
+   ========================================================================== */
 body.bg-cloudy {
-  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.88)),
     url('https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=1920&q=80');
 }
 
-/* Foggy */
+body.bg-cloudy::before {
+  opacity: 0.4;
+  background: radial-gradient(ellipse at 50% 20%, rgba(255, 255, 255, 0.12) 0%, transparent 70%);
+  animation: cloudDrift 25s ease-in-out infinite alternate;
+}
+
+@keyframes cloudDrift {
+  0% { transform: translateX(-40px); }
+  100% { transform: translateX(40px); }
+}
+
+/* ==========================================================================
+   4. FOGGY (Rolling Mist Overlay)
+   ========================================================================== */
 body.bg-foggy {
   background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
     url('https://images.unsplash.com/photo-1487621167305-5d248087c724?auto=format&fit=crop&w=1920&q=80');
 }
 
-/* Rainy */
+body.bg-foggy::before {
+  opacity: 0.5;
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.05) 100%);
+  animation: fogRoll 18s linear infinite;
+}
+
+@keyframes fogRoll {
+  0% { transform: translateX(-10%); }
+  100% { transform: translateX(10%); }
+}
+
+/* ==========================================================================
+   5. RAINY (Animated Falling Rain Streaks)
+   ========================================================================== */
 body.bg-rainy {
-  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.92)),
     url('https://images.unsplash.com/photo-1519692933481-e162a57d6721?auto=format&fit=crop&w=1920&q=80');
 }
 
-/* Snowy */
+body.bg-rainy::before {
+  opacity: 0.8;
+  background-image: repeating-linear-gradient(
+    170deg,
+    transparent 0px,
+    transparent 8px,
+    rgba(186, 230, 253, 0.18) 9px,
+    transparent 11px
+  );
+  animation: rainFall 0.8s linear infinite;
+}
+
+@keyframes rainFall {
+  0% {
+    background-position: 0px 0px;
+  }
+  100% {
+    background-position: -40px 400px;
+  }
+}
+
+/* ==========================================================================
+   6. SNOWY (Falling Snow Particles)
+   ========================================================================== */
 body.bg-snowy {
-  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)),
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.85)),
     url('https://images.unsplash.com/photo-1491002052546-bf38f186af56?auto=format&fit=crop&w=1920&q=80');
 }
 
-/* Thunderstorm */
+body.bg-snowy::before {
+  opacity: 0.85;
+  background-image: radial-gradient(4px 4px at 20px 30px, rgba(255, 255, 255, 0.8), rgba(0,0,0,0)),
+                    radial-gradient(3px 3px at 40px 70px, rgba(255, 255, 255, 0.6), rgba(0,0,0,0)),
+                    radial-gradient(5px 5px at 90px 40px, rgba(255, 255, 255, 0.9), rgba(0,0,0,0)),
+                    radial-gradient(3px 3px at 150px 120px, rgba(255, 255, 255, 0.7), rgba(0,0,0,0));
+  background-size: 200px 200px;
+  animation: snowFall 6s linear infinite;
+}
+
+@keyframes snowFall {
+  0% {
+    background-position: 0px 0px;
+  }
+  100% {
+    background-position: 30px 200px;
+  }
+}
+
+/* ==========================================================================
+   7. THUNDERSTORM (Lightning Flash Animation)
+   ========================================================================== */
 body.bg-thunderstorm {
   background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
     url('https://images.unsplash.com/photo-1605727216801-e27ce1d0cc28?auto=format&fit=crop&w=1920&q=80');
+}
+
+body.bg-thunderstorm::after {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  animation: lightningFlash 7s infinite;
+}
+
+@keyframes lightningFlash {
+  0%, 92%, 96%, 100% { opacity: 0; }
+  93% { opacity: 0.6; }
+  95% { opacity: 0.2; }
+  97% { opacity: 0.8; }
 }
