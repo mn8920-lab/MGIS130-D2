@@ -6,13 +6,17 @@
   <title>Personal Weather Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Custom Weather Background Stylesheet -->
   <link rel="stylesheet" href="style.css" />
 </head>
-<body id="app-body" class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-all duration-700">
-  <div class="max-w-4xl mx-auto space-y-6">
-    <canvas id="weather-canvas"></canvas>
-    <!-- Search Header with Live Dropdown -->
+<body id="app-body" class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans relative transition-colors duration-700">
+
+  <!-- Fullscreen Live Canvas Animation Background -->
+  <canvas id="weather-canvas"></canvas>
+
+  <!-- Foreground Weather Interface Wrapper -->
+  <div class="max-w-4xl mx-auto space-y-6 relative z-10">
+    
+    <!-- Search Header with Live Suggestions Dropdown -->
     <header class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/60 shadow-lg gap-4 relative z-50">
       <div class="flex items-center gap-2">
         <span id="header-icon" class="text-2xl">☀️</span>
@@ -25,17 +29,14 @@
           <button id="search-btn" onclick="handleSearch()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-5 py-2 rounded-xl transition font-medium shadow-md">Search</button>
         </div>
 
-        <!-- Dynamic Search Results Dropdown -->
-        <div id="search-dropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-slate-800/95 border border-slate-700 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md max-h-60 overflow-y-auto z-50">
-          <!-- Suggested search results injected dynamically -->
-        </div>
+        <div id="search-dropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-slate-800/95 border border-slate-700 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md max-h-60 overflow-y-auto z-50"></div>
       </div>
     </header>
 
-    <!-- Error Banner -->
+    <!-- Error Alert Box -->
     <div id="error-box" class="hidden bg-rose-900/60 border border-rose-500 text-rose-200 p-3 rounded-xl text-sm backdrop-blur-md"></div>
 
-    <!-- Main Dynamic Hero Card -->
+    <!-- Main Dynamic Hero Display -->
     <div id="hero-card" class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-700 backdrop-blur-md">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
         <div>
@@ -69,7 +70,7 @@
       </div>
     </div>
 
-    <!-- Expandable Weather Summary & Overview Tab -->
+    <!-- Expandable Daily Summary & Details -->
     <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-5 shadow-lg transition-all">
       <div class="flex justify-between items-center mb-2">
         <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
@@ -80,11 +81,8 @@
         </button>
       </div>
       
-      <p id="brief-summary" class="text-sm text-slate-300 leading-relaxed">
-        Loading summary...
-      </p>
+      <p id="brief-summary" class="text-sm text-slate-300 leading-relaxed">Loading summary...</p>
 
-      <!-- Expandable Details Grid -->
       <div id="extra-details" class="hidden mt-4 pt-4 border-t border-slate-700/60 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/40">
           <p class="text-slate-400">Max UV Index</p>
@@ -105,7 +103,7 @@
       </div>
     </div>
 
-    <!-- Apple Weather Style Hourly Forecast -->
+    <!-- Apple Weather Hourly Chart -->
     <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-5 shadow-lg">
       <h3 id="hourly-title" class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
         <span>⏰</span> Hourly Forecast
@@ -116,23 +114,18 @@
           <div class="h-36 relative">
             <canvas id="hourlyChart"></canvas>
           </div>
-          
-          <div id="icon-track" class="flex justify-between pt-2 border-t border-slate-700/50 text-center">
-            <!-- Icons injected dynamically -->
-          </div>
+          <div id="icon-track" class="flex justify-between pt-2 border-t border-slate-700/50 text-center"></div>
         </div>
       </div>
     </div>
 
-    <!-- 7-Day Extended Forecast Slider Carousel -->
+    <!-- 7-Day Extended Forecast Carousel -->
     <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-5 shadow-lg">
       <h3 class="text-sm font-semibold text-slate-300 mb-1 flex items-center gap-2">
         <span>📅</span> 7-Day Extended Forecast
       </h3>
       <p class="text-xs text-slate-400 mb-3">Click on any day below to view its full breakdown above.</p>
-      <div id="daily-slider" class="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1">
-        <!-- Daily forecast cards generated dynamically -->
-      </div>
+      <div id="daily-slider" class="flex gap-4 overflow-x-auto no-scrollbar py-2 px-1"></div>
     </div>
 
   </div>
@@ -143,19 +136,141 @@
     let selectedDayIndex = 0;
     let isExpanded = false;
     let searchDebounce = null;
+    let activeEffectType = 'clear-day';
 
+    // Particle Canvas Animation Setup
+    const canvas = document.getElementById('weather-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor(type) {
+        this.reset(type);
+      }
+
+      reset(type) {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.type = type;
+
+        if (type === 'rainy' || type === 'thunderstorm') {
+          this.y = -20;
+          this.length = 15 + Math.random() * 20;
+          this.speed = 12 + Math.random() * 8;
+          this.opacity = 0.3 + Math.random() * 0.5;
+        } else if (type === 'snowy') {
+          this.y = -10;
+          this.radius = 1.5 + Math.random() * 3.5;
+          this.speed = 1 + Math.random() * 2.5;
+          this.velX = -0.5 + Math.random() * 1;
+          this.opacity = 0.4 + Math.random() * 0.5;
+        } else if (type === 'cloudy' || type === 'foggy') {
+          this.radius = 80 + Math.random() * 120;
+          this.speed = 0.2 + Math.random() * 0.4;
+          this.opacity = 0.05 + Math.random() * 0.1;
+        } else if (type === 'clear-day') {
+          this.radius = 2 + Math.random() * 4;
+          this.speed = 0.3 + Math.random() * 0.6;
+          this.opacity = 0.2 + Math.random() * 0.4;
+        }
+      }
+
+      update() {
+        if (this.type === 'rainy' || this.type === 'thunderstorm') {
+          this.y += this.speed;
+          this.x -= 2;
+          if (this.y > canvas.height) this.reset(this.type);
+        } else if (this.type === 'snowy') {
+          this.y += this.speed;
+          this.x += this.velX;
+          if (this.y > canvas.height) this.reset(this.type);
+        } else if (this.type === 'cloudy' || this.type === 'foggy') {
+          this.x += this.speed;
+          if (this.x - this.radius > canvas.width) this.x = -this.radius;
+        } else if (this.type === 'clear-day') {
+          this.y -= this.speed;
+          if (this.y < 0) this.reset(this.type);
+        }
+      }
+
+      draw() {
+        ctx.save();
+        if (this.type === 'rainy' || this.type === 'thunderstorm') {
+          ctx.strokeStyle = `rgba(186, 230, 253, ${this.opacity})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y);
+          ctx.lineTo(this.x - 3, this.y + this.length);
+          ctx.stroke();
+        } else if (this.type === 'snowy') {
+          ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'cloudy' || this.type === 'foggy') {
+          ctx.fillStyle = `rgba(226, 232, 240, ${this.opacity})`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'clear-day') {
+          ctx.fillStyle = `rgba(253, 224, 71, ${this.opacity})`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    function initParticles(type) {
+      activeEffectType = type;
+      particles = [];
+      let count = 60;
+      if (type === 'rainy' || type === 'thunderstorm') count = 120;
+      if (type === 'snowy') count = 80;
+      if (type === 'cloudy' || type === 'foggy') count = 25;
+
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(type));
+      }
+    }
+
+    function renderAnimation() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (activeEffectType === 'thunderstorm' && Math.random() < 0.015) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+
+      requestAnimationFrame(renderAnimation);
+    }
+
+    renderAnimation();
+
+    // Event Listeners for Live Search Dropdown & Key Events
     const locationInput = document.getElementById('location-input');
     const dropdown = document.getElementById('search-dropdown');
 
     locationInput.addEventListener('input', function() {
       clearTimeout(searchDebounce);
       const query = this.value.trim();
-      
       if (query.length < 2) {
         dropdown.classList.add('hidden');
         return;
       }
-
       searchDebounce = setTimeout(() => fetchLocationSuggestions(query), 300);
     });
 
@@ -167,9 +282,7 @@
       }
     });
 
-    locationInput.addEventListener('focus', function() {
-      this.select();
-    });
+    locationInput.addEventListener('focus', function() { this.select(); });
 
     document.addEventListener('click', function(event) {
       if (!locationInput.contains(event.target) && !dropdown.contains(event.target)) {
@@ -202,9 +315,7 @@
         }).join('');
 
         dropdown.classList.remove('hidden');
-      } catch (err) {
-        console.error("Geocoding failed", err);
-      }
+      } catch (err) { console.error("Geocoding error", err); }
     }
 
     function selectLocation(lat, lon, label) {
@@ -217,25 +328,25 @@
     function parseWeatherCode(code, isDay = 1) {
       if (code === 0) {
         return isDay 
-          ? { icon: '☀️', text: 'Clear Sky', bgClass: 'bg-clear-day', card: 'border-amber-500/40' }
-          : { icon: '🌙', text: 'Clear Night', bgClass: 'bg-clear-night', card: 'border-indigo-500/40' };
+          ? { icon: '☀️', text: 'Clear Sky', bgClass: 'bg-clear-day', effect: 'clear-day', card: 'border-amber-500/40' }
+          : { icon: '🌙', text: 'Clear Night', bgClass: 'bg-clear-night', effect: 'clear-day', card: 'border-indigo-500/40' };
       }
       if ([1, 2, 3].includes(code)) {
-        return { icon: isDay ? '⛅' : '☁️', text: 'Partly Cloudy', bgClass: 'bg-cloudy', card: 'border-slate-600/40' };
+        return { icon: isDay ? '⛅' : '☁️', text: 'Partly Cloudy', bgClass: 'bg-cloudy', effect: 'cloudy', card: 'border-slate-600/40' };
       }
       if ([45, 48].includes(code)) {
-        return { icon: '🌫️', text: 'Foggy', bgClass: 'bg-foggy', card: 'border-gray-500/40' };
+        return { icon: '🌫️', text: 'Foggy', bgClass: 'bg-foggy', effect: 'foggy', card: 'border-gray-500/40' };
       }
       if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) {
-        return { icon: '🌧️', text: 'Rainy', bgClass: 'bg-rainy', card: 'border-cyan-500/40' };
+        return { icon: '🌧️', text: 'Rainy', bgClass: 'bg-rainy', effect: 'rainy', card: 'border-cyan-500/40' };
       }
       if ([71, 73, 75, 77, 85, 86].includes(code)) {
-        return { icon: '❄️', text: 'Snowy', bgClass: 'bg-snowy', card: 'border-blue-300/40' };
+        return { icon: '❄️', text: 'Snowy', bgClass: 'bg-snowy', effect: 'snowy', card: 'border-blue-300/40' };
       }
       if ([95, 96, 99].includes(code)) {
-        return { icon: '⛈️', text: 'Thunderstorm', bgClass: 'bg-thunderstorm', card: 'border-purple-500/40' };
+        return { icon: '⛈️', text: 'Thunderstorm', bgClass: 'bg-thunderstorm', effect: 'thunderstorm', card: 'border-purple-500/40' };
       }
-      return { icon: '☁️', text: 'Overcast', bgClass: 'bg-cloudy', card: 'border-slate-700' };
+      return { icon: '☁️', text: 'Overcast', bgClass: 'bg-cloudy', effect: 'cloudy', card: 'border-slate-700' };
     }
 
     function showError(msg) {
@@ -324,8 +435,8 @@
       const dayCode = data.daily.weather_code[dayIndex];
       const condition = parseWeatherCode(dayCode, 1);
 
-      // Update Body Background Image based on weather condition
-      document.body.className = `bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-all duration-700 ${condition.bgClass}`;
+      initParticles(condition.effect);
+      document.body.className = `bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans relative transition-all duration-700 ${condition.bgClass}`;
 
       document.getElementById('weather-icon').innerText = condition.icon;
       document.getElementById('header-icon').innerText = condition.icon;
@@ -414,9 +525,7 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              callbacks: {
-                label: (context) => `${context.parsed.y}°F`
-              }
+              callbacks: { label: (context) => `${context.parsed.y}°F` }
             }
           }
         }
