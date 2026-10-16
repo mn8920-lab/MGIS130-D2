@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* Custom scrollbar styling for the sliding forecast carousels */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -15,7 +14,7 @@
 <body id="app-body" class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-colors duration-700">
   <div class="max-w-4xl mx-auto space-y-6">
     
-    <!-- Header Search Bar -->
+    <!-- Search Header -->
     <header class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/60 shadow-lg gap-4">
       <div class="flex items-center gap-2">
         <span id="header-icon" class="text-2xl">☀️</span>
@@ -27,7 +26,7 @@
       </div>
     </header>
 
-    <!-- Error Alert Banner -->
+    <!-- Error Banner -->
     <div id="error-box" class="hidden bg-rose-900/60 border border-rose-500 text-rose-200 p-3 rounded-xl text-sm backdrop-blur-md"></div>
 
     <!-- Main Dynamic Hero Card -->
@@ -43,7 +42,6 @@
           <p id="feels-like" class="text-slate-300 text-sm">Feels like --°F</p>
         </div>
         
-        <!-- Detailed Environmental Indicators -->
         <div class="grid grid-cols-2 gap-4 w-full sm:w-auto bg-slate-900/40 p-4 rounded-xl border border-slate-700/40 text-sm backdrop-blur-sm">
           <div>
             <p class="text-slate-400 text-xs">Humidity</p>
@@ -54,33 +52,37 @@
             <p id="wind" class="text-lg font-bold">-- mph</p>
           </div>
           <div>
-            <p class="text-slate-400 text-xs">Max Temp Today</p>
+            <p class="text-slate-400 text-xs">High</p>
             <p id="temp-max" class="text-lg font-bold text-amber-400">--°F</p>
           </div>
           <div>
-            <p class="text-slate-400 text-xs">Min Temp Today</p>
+            <p class="text-slate-400 text-xs">Low</p>
             <p id="temp-min" class="text-lg font-bold text-cyan-400">--°F</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Hourly Slider Carousel Section -->
+    <!-- Apple Weather Style Hourly Forecast (Line Chart + Synchronized Icons at Bottom) -->
     <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-5 shadow-lg">
       <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-        <span>⏰</span> Today's Hourly Forecast (Scroll or Drag)
+        <span>⏰</span> Hourly Forecast
       </h3>
-      <div id="hourly-slider" class="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1">
-        <!-- Hourly forecast cards generated dynamically -->
+      
+      <!-- Horizontal Scrollable Container -->
+      <div class="overflow-x-auto no-scrollbar py-2">
+        <div class="min-w-[900px]">
+          <!-- Line Chart Layer -->
+          <div class="h-36 relative">
+            <canvas id="hourlyChart"></canvas>
+          </div>
+          
+          <!-- Bottom Weather Icon Track (Aligned to Chart Points) -->
+          <div id="icon-track" class="flex justify-between pt-2 border-t border-slate-700/50 text-center">
+            <!-- Icons injected dynamically -->
+          </div>
+        </div>
       </div>
-    </div>
-
-    <!-- 24-Hour Trend Chart -->
-    <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-5 shadow-lg">
-      <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
-        <span>📈</span> Temperature Curve (Next 24 Hours)
-      </h3>
-      <canvas id="hourlyChart" class="w-full h-44"></canvas>
     </div>
 
     <!-- 7-Day Extended Forecast Slider Carousel -->
@@ -98,7 +100,6 @@
   <script>
     let chartInstance = null;
 
-    // Map WMO Weather Interpretation Codes to Icons, Conditions, and Theme Gradients
     function parseWeatherCode(code, isDay = 1) {
       if (code === 0) {
         return isDay 
@@ -120,7 +121,7 @@
       if ([95, 96, 99].includes(code)) {
         return { icon: '⛈️', text: 'Thunderstorm', bg: 'from-purple-900/40 to-slate-950', card: 'border-purple-500/40' };
       }
-      return { icon: '🌡️', text: 'Overcast', bg: 'from-slate-800 to-slate-900', card: 'border-slate-700' };
+      return { icon: '☁️', text: 'Overcast', bg: 'from-slate-800 to-slate-900', card: 'border-slate-700' };
     }
 
     function showError(msg) {
@@ -146,7 +147,7 @@
       const data = await res.json();
 
       if (!data.results || data.results.length === 0) {
-        throw new Error(`Location "${query}" not found. Try searching for a valid city name.`);
+        throw new Error(`Location "${query}" not found.`);
       }
 
       const loc = data.results[0];
@@ -175,7 +176,7 @@
         if (!response.ok) throw new Error('Failed to fetch weather data from API.');
         const data = await response.json();
 
-        // 1. Update Hero Condition Card & Dynamic Theme
+        // 1. Update Hero Card Data
         const condition = parseWeatherCode(data.current.weather_code, data.current.is_day);
         document.getElementById('weather-icon').innerText = condition.icon;
         document.getElementById('header-icon').innerText = condition.icon;
@@ -187,33 +188,34 @@
         document.getElementById('temp-max').innerText = `${Math.round(data.daily.temperature_2m_max[0])}°F`;
         document.getElementById('temp-min').innerText = `${Math.round(data.daily.temperature_2m_min[0])}°F`;
 
-        // Apply Weather Gradient Style
         const heroCard = document.getElementById('hero-card');
         heroCard.className = `bg-gradient-to-br ${condition.bg} border ${condition.card} rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-700`;
 
-        // 2. Build Hourly Sliding Cards
-        const hourlyContainer = document.getElementById('hourly-slider');
-        hourlyContainer.innerHTML = '';
+        // 2. Render Hourly Chart + Bottom Icon Track
         const currentHour = new Date().getHours();
-        
-        for (let i = currentHour; i < currentHour + 24; i++) {
-          const timeString = data.hourly.time[i]?.split('T')[1] || `${i % 24}:00`;
-          const tempVal = Math.round(data.hourly.temperature_2m[i]);
-          const codeVal = data.hourly.weather_code[i];
-          const hourCond = parseWeatherCode(codeVal, (i % 24 >= 6 && i % 24 <= 20) ? 1 : 0);
+        const chartLabels = data.hourly.time.slice(currentHour, currentHour + 24).map((t, idx) => {
+          if (idx === 0) return 'Now';
+          const hourNum = parseInt(t.split('T')[1].split(':')[0]);
+          const ampm = hourNum >= 12 ? 'PM' : 'AM';
+          const formattedHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+          return `${formattedHour}${ampm}`;
+        });
 
-          hourlyContainer.innerHTML += `
-            <div class="flex-none bg-slate-900/60 border border-slate-700/50 rounded-xl p-3 min-w-[80px] text-center backdrop-blur-sm hover:border-cyan-500/50 transition">
-              <p class="text-xs text-slate-400 mb-1 font-medium">${timeString}</p>
-              <p class="text-2xl my-1">${hourCond.icon}</p>
-              <p class="text-sm font-bold">${tempVal}°F</p>
+        const chartTemps = data.hourly.temperature_2m.slice(currentHour, currentHour + 24).map(t => Math.round(t));
+        const iconTrackContainer = document.getElementById('icon-track');
+        iconTrackContainer.innerHTML = '';
+
+        for (let i = currentHour; i < currentHour + 24; i++) {
+          const codeVal = data.hourly.weather_code[i];
+          const hourNum = i % 24;
+          const hourCond = parseWeatherCode(codeVal, (hourNum >= 6 && hourNum <= 20) ? 1 : 0);
+
+          iconTrackContainer.innerHTML += `
+            <div class="flex-1 text-center">
+              <span class="text-lg block">${hourCond.icon}</span>
             </div>
           `;
         }
-
-        // 3. Render 24-Hour Line Chart
-        const chartLabels = data.hourly.time.slice(currentHour, currentHour + 24).map(t => t.split('T')[1]);
-        const chartTemps = data.hourly.temperature_2m.slice(currentHour, currentHour + 24);
 
         if (chartInstance) chartInstance.destroy();
         const ctx = document.getElementById('hourlyChart').getContext('2d');
@@ -224,23 +226,32 @@
             datasets: [{
               data: chartTemps,
               borderColor: '#22d3ee',
-              backgroundColor: 'rgba(34, 211, 238, 0.1)',
+              backgroundColor: 'rgba(34, 211, 238, 0.15)',
               fill: true,
               tension: 0.35,
-              pointRadius: 2
+              pointRadius: 3,
+              pointBackgroundColor: '#22d3ee'
             }]
           },
           options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
               x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-              y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+              y: { display: false }
             },
-            plugins: { legend: { display: false } }
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `${context.parsed.y}°F`
+                }
+              }
+            }
           }
         });
 
-        // 4. Build 7-Day Extended Forecast Slider Cards
+        // 3. Render 7-Day Extended Forecast Slider
         const dailyContainer = document.getElementById('daily-slider');
         dailyContainer.innerHTML = '';
 
@@ -268,8 +279,8 @@
       }
     }
 
-    // Load weather automatically on startup
     handleSearch();
   </script>
 </body>
 </html>
+
