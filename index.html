@@ -14,15 +14,23 @@
 <body id="app-body" class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-colors duration-700">
   <div class="max-w-4xl mx-auto space-y-6">
     
-    <!-- Search Header -->
-    <header class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/60 shadow-lg gap-4">
+    <!-- Search Header with Live Dropdown -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/60 shadow-lg gap-4 relative z-50">
       <div class="flex items-center gap-2">
         <span id="header-icon" class="text-2xl">☀️</span>
         <h1 class="text-xl font-bold tracking-wide text-cyan-400">Weather Pulse</h1>
       </div>
-      <div class="flex gap-2 w-full sm:w-auto">
-        <input id="location-input" type="text" value="Canandaigua" placeholder="Enter City Name or Lat, Lon" class="px-4 py-2 bg-slate-900/90 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-cyan-500 w-full sm:w-64">
-        <button onclick="handleSearch()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-5 py-2 rounded-xl transition font-medium shadow-md">Search</button>
+      
+      <div class="relative w-full sm:w-80">
+        <div class="flex gap-2">
+          <input id="location-input" type="text" value="Kyoto" placeholder="Enter City, Region, or Country" autocomplete="off" class="px-4 py-2 bg-slate-900/90 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-cyan-500 w-full transition">
+          <button id="search-btn" onclick="handleSearch()" class="bg-cyan-600 hover:bg-cyan-500 text-white text-sm px-5 py-2 rounded-xl transition font-medium shadow-md">Search</button>
+        </div>
+
+        <!-- Dynamic Search Results Dropdown -->
+        <div id="search-dropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-slate-800/95 border border-slate-700 rounded-xl shadow-2xl overflow-hidden backdrop-blur-md max-h-60 overflow-y-auto z-50">
+          <!-- Suggested search results injected dynamically -->
+        </div>
       </div>
     </header>
 
@@ -37,7 +45,7 @@
             <span id="weather-icon" class="text-4xl">☀️</span>
             <span id="condition-label" class="text-lg font-medium text-slate-300">Clear Sky</span>
           </div>
-          <h2 id="location-label" class="text-slate-400 text-sm mt-2 font-medium">--</h2>
+          <h2 id="location-label" class="text-slate-300 text-base mt-2 font-semibold">Kyoto, Kansai, Japan</h2>
           <p id="temp" class="text-6xl sm:text-7xl font-black my-2 tracking-tight">--°F</p>
           <p id="feels-like" class="text-slate-300 text-sm">Feels like --°F</p>
         </div>
@@ -78,7 +86,7 @@
         Loading summary...
       </p>
 
-      <!-- Expandable Extra Details Container -->
+      <!-- Expandable Details Grid -->
       <div id="extra-details" class="hidden mt-4 pt-4 border-t border-slate-700/60 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
         <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/40">
           <p class="text-slate-400">Max UV Index</p>
@@ -99,7 +107,7 @@
       </div>
     </div>
 
-    <!-- Apple Weather Style Hourly Forecast (Line Chart + Synchronized Icons) -->
+    <!-- Apple Weather Style Hourly Forecast -->
     <div class="bg-slate-800/80 backdrop-blur-md border border-slate-700/60 rounded-2xl p-5 shadow-lg">
       <h3 id="hourly-title" class="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
         <span>⏰</span> Hourly Forecast
@@ -136,6 +144,79 @@
     let globalWeatherData = null;
     let selectedDayIndex = 0;
     let isExpanded = false;
+    let searchDebounce = null;
+
+    const locationInput = document.getElementById('location-input');
+    const dropdown = document.getElementById('search-dropdown');
+
+    // Input listeners for live dropdown search
+    locationInput.addEventListener('input', function() {
+      clearTimeout(searchDebounce);
+      const query = this.value.trim();
+      
+      if (query.length < 2) {
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      searchDebounce = setTimeout(() => fetchLocationSuggestions(query), 300);
+    });
+
+    locationInput.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        dropdown.classList.add('hidden');
+        handleSearch();
+      }
+    });
+
+    locationInput.addEventListener('focus', function() {
+      this.select();
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      if (!locationInput.contains(event.target) && !dropdown.contains(event.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    async function fetchLocationSuggestions(query) {
+      try {
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`;
+        const res = await fetch(geoUrl);
+        const data = await res.json();
+
+        if (!data.results || data.results.length === 0) {
+          dropdown.innerHTML = `<div class="p-3 text-xs text-slate-400">No matching locations found</div>`;
+          dropdown.classList.remove('hidden');
+          return;
+        }
+
+        dropdown.innerHTML = data.results.map(loc => {
+          const regionParts = [loc.name, loc.admin1, loc.country].filter(Boolean);
+          const fullLabel = regionParts.join(', ');
+          return `
+            <div onclick="selectLocation(${loc.latitude}, ${loc.longitude}, '${fullLabel.replace(/'/g, "\\'")}')" 
+                 class="p-3 hover:bg-slate-700/80 cursor-pointer transition border-b border-slate-700/40 last:border-0 text-xs">
+              <p class="font-bold text-slate-100">${loc.name}</p>
+              <p class="text-slate-400 text-[11px]">${[loc.admin1, loc.country].filter(Boolean).join(', ')}</p>
+            </div>
+          `;
+        }).join('');
+
+        dropdown.classList.remove('hidden');
+      } catch (err) {
+        console.error("Geocoding failed", err);
+      }
+    }
+
+    function selectLocation(lat, lon, label) {
+      dropdown.classList.add('hidden');
+      document.getElementById('location-input').value = label;
+      document.getElementById('location-label').innerText = label;
+      fetchWeather(lat, lon);
+    }
 
     function parseWeatherCode(code, isDay = 1) {
       if (code === 0) {
@@ -202,7 +283,8 @@
       }
 
       const loc = data.results[0];
-      return { lat: loc.latitude, lon: loc.longitude, name: `${loc.name}, ${loc.admin1 || loc.country}` };
+      const nameParts = [loc.name, loc.admin1, loc.country].filter(Boolean);
+      return { lat: loc.latitude, lon: loc.longitude, name: nameParts.join(', ') };
     }
 
     async function handleSearch() {
@@ -227,7 +309,6 @@
         if (!response.ok) throw new Error('Failed to fetch weather data from API.');
         globalWeatherData = await response.json();
         
-        // Default to showing Day 0 (Today)
         selectDay(0);
         render7DayCards();
 
@@ -241,15 +322,12 @@
       const data = globalWeatherData;
       const isToday = (dayIndex === 0);
 
-      // Determine date string
       const dateObj = new Date(data.daily.time[dayIndex] + 'T00:00:00');
       const dateStr = isToday ? 'Today' : dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-      // Daily condition code
       const dayCode = data.daily.weather_code[dayIndex];
       const condition = parseWeatherCode(dayCode, 1);
 
-      // 1. Update Hero Card
       document.getElementById('weather-icon').innerText = condition.icon;
       document.getElementById('header-icon').innerText = condition.icon;
       document.getElementById('condition-label').innerText = condition.text;
@@ -268,7 +346,6 @@
       const heroCard = document.getElementById('hero-card');
       heroCard.className = `bg-gradient-to-br ${condition.bg} border ${condition.card} rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-700`;
 
-      // 2. Update Weather Summary Section
       const maxTemp = Math.round(data.daily.temperature_2m_max[dayIndex]);
       const minTemp = Math.round(data.daily.temperature_2m_min[dayIndex]);
       const precipProb = data.daily.precipitation_probability_max[dayIndex] || 0;
@@ -281,13 +358,11 @@
       }
       document.getElementById('brief-summary').innerText = summaryText;
 
-      // Update Extra Detailed Attributes
       document.getElementById('uv-index').innerText = data.daily.uv_index_max[dayIndex] || '0';
       document.getElementById('precip-prob').innerText = `${precipProb}%`;
       document.getElementById('wind-gusts').innerText = `${Math.round(data.daily.wind_gusts_10m_max[dayIndex])} mph`;
       document.getElementById('pressure').innerText = isToday ? `${Math.round(data.current.surface_pressure)} hPa` : 'Standard';
 
-      // 3. Update Hourly Chart & Title
       document.getElementById('hourly-title').innerHTML = `<span>⏰</span> ${dateStr}'s Hourly Forecast`;
       
       const startHour = dayIndex * 24;
@@ -351,7 +426,6 @@
         }
       });
 
-      // Highlight Active Card
       render7DayCards();
     }
 
