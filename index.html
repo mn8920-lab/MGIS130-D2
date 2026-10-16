@@ -6,12 +6,10 @@
   <title>Personal Weather Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  </style>
+  <!-- Custom Weather Background Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body id="app-body" class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-colors duration-700">
+<body id="app-body" class="bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-all duration-700">
   <div class="max-w-4xl mx-auto space-y-6">
     
     <!-- Search Header with Live Dropdown -->
@@ -38,7 +36,7 @@
     <div id="error-box" class="hidden bg-rose-900/60 border border-rose-500 text-rose-200 p-3 rounded-xl text-sm backdrop-blur-md"></div>
 
     <!-- Main Dynamic Hero Card -->
-    <div id="hero-card" class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/60 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-700">
+    <div id="hero-card" class="bg-gradient-to-br from-slate-800/90 to-slate-900/90 border border-slate-700/60 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-700 backdrop-blur-md">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
         <div>
           <div class="flex items-center gap-2">
@@ -50,7 +48,7 @@
           <p id="feels-like" class="text-slate-300 text-sm">Feels like --°F</p>
         </div>
         
-        <div class="grid grid-cols-2 gap-4 w-full sm:w-auto bg-slate-900/40 p-4 rounded-xl border border-slate-700/40 text-sm backdrop-blur-sm">
+        <div class="grid grid-cols-2 gap-4 w-full sm:w-auto bg-slate-900/50 p-4 rounded-xl border border-slate-700/40 text-sm backdrop-blur-sm">
           <div>
             <p class="text-slate-400 text-xs">Humidity</p>
             <p id="humidity" class="text-lg font-bold">--%</p>
@@ -149,7 +147,6 @@
     const locationInput = document.getElementById('location-input');
     const dropdown = document.getElementById('search-dropdown');
 
-    // Input listeners for live dropdown search
     locationInput.addEventListener('input', function() {
       clearTimeout(searchDebounce);
       const query = this.value.trim();
@@ -174,7 +171,6 @@
       this.select();
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', function(event) {
       if (!locationInput.contains(event.target) && !dropdown.contains(event.target)) {
         dropdown.classList.add('hidden');
@@ -221,25 +217,25 @@
     function parseWeatherCode(code, isDay = 1) {
       if (code === 0) {
         return isDay 
-          ? { icon: '☀️', text: 'Clear Sky', bg: 'from-amber-600/30 to-blue-900/60', card: 'border-amber-500/40' }
-          : { icon: '🌙', text: 'Clear Night', bg: 'from-indigo-950 to-slate-900', card: 'border-indigo-500/40' };
+          ? { icon: '☀️', text: 'Clear Sky', bgClass: 'bg-clear-day', card: 'border-amber-500/40' }
+          : { icon: '🌙', text: 'Clear Night', bgClass: 'bg-clear-night', card: 'border-indigo-500/40' };
       }
       if ([1, 2, 3].includes(code)) {
-        return { icon: isDay ? '⛅' : '☁️', text: 'Partly Cloudy', bg: 'from-slate-700/50 to-slate-900', card: 'border-slate-600/40' };
+        return { icon: isDay ? '⛅' : '☁️', text: 'Partly Cloudy', bgClass: 'bg-cloudy', card: 'border-slate-600/40' };
       }
       if ([45, 48].includes(code)) {
-        return { icon: '🌫️', text: 'Foggy', bg: 'from-gray-700/50 to-slate-900', card: 'border-gray-500/40' };
+        return { icon: '🌫️', text: 'Foggy', bgClass: 'bg-foggy', card: 'border-gray-500/40' };
       }
       if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) {
-        return { icon: '🌧️', text: 'Rainy', bg: 'from-cyan-900/40 to-slate-900', card: 'border-cyan-500/40' };
+        return { icon: '🌧️', text: 'Rainy', bgClass: 'bg-rainy', card: 'border-cyan-500/40' };
       }
       if ([71, 73, 75, 77, 85, 86].includes(code)) {
-        return { icon: '❄️', text: 'Snowy', bg: 'from-blue-900/30 to-slate-900', card: 'border-blue-300/40' };
+        return { icon: '❄️', text: 'Snowy', bgClass: 'bg-snowy', card: 'border-blue-300/40' };
       }
       if ([95, 96, 99].includes(code)) {
-        return { icon: '⛈️', text: 'Thunderstorm', bg: 'from-purple-900/40 to-slate-950', card: 'border-purple-500/40' };
+        return { icon: '⛈️', text: 'Thunderstorm', bgClass: 'bg-thunderstorm', card: 'border-purple-500/40' };
       }
-      return { icon: '☁️', text: 'Overcast', bg: 'from-slate-800 to-slate-900', card: 'border-slate-700' };
+      return { icon: '☁️', text: 'Overcast', bgClass: 'bg-cloudy', card: 'border-slate-700' };
     }
 
     function showError(msg) {
@@ -328,6 +324,9 @@
       const dayCode = data.daily.weather_code[dayIndex];
       const condition = parseWeatherCode(dayCode, 1);
 
+      // Update Body Background Image based on weather condition
+      document.body.className = `bg-slate-900 text-slate-100 min-h-screen p-4 sm:p-6 font-sans transition-all duration-700 ${condition.bgClass}`;
+
       document.getElementById('weather-icon').innerText = condition.icon;
       document.getElementById('header-icon').innerText = condition.icon;
       document.getElementById('condition-label').innerText = condition.text;
@@ -342,9 +341,6 @@
       document.getElementById('wind').innerText = isToday ? `${data.current.wind_speed_10m} mph` : `${Math.round(data.daily.wind_gusts_10m_max[dayIndex])} mph (max)`;
       document.getElementById('temp-max').innerText = `${Math.round(data.daily.temperature_2m_max[dayIndex])}°F`;
       document.getElementById('temp-min').innerText = `${Math.round(data.daily.temperature_2m_min[dayIndex])}°F`;
-
-      const heroCard = document.getElementById('hero-card');
-      heroCard.className = `bg-gradient-to-br ${condition.bg} border ${condition.card} rounded-2xl p-6 shadow-xl relative overflow-hidden transition-all duration-700`;
 
       const maxTemp = Math.round(data.daily.temperature_2m_max[dayIndex]);
       const minTemp = Math.round(data.daily.temperature_2m_min[dayIndex]);
