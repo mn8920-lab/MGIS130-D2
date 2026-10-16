@@ -1,0 +1,62 @@
+/* Custom scrollbar utility */
+.no-scrollbar::-webkit-scrollbar { 
+  display: none; 
+}
+.no-scrollbar { 
+  -ms-overflow-style: none; 
+  scrollbar-width: none; 
+}
+
+/* Base Body Styles with Smooth Background Transitions */
+body {
+  background-color: #0f172a;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  transition: background-image 0.8s ease-in-out, background-color 0.8s ease-in-out;
+}
+
+/* Dynamic Weather Background Overlays (High Quality Unsplash Images) */
+
+/* Clear / Sunny Day */
+body.bg-clear-day {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)),
+    url('https://images.unsplash.com/photo-1601297183305-6df142704ea2?auto=format&fit=crop&w=1920&q=80');
+}
+
+/* Clear Night */
+body.bg-clear-night {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+    url('https://images.unsplash.com/photo-1509773896068-7fd415d91e2b?auto=format&fit=crop&w=1920&q=80');
+}
+
+/* Cloudy / Overcast */
+body.bg-cloudy {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+    url('https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=1920&q=80');
+}
+
+/* Foggy */
+body.bg-foggy {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+    url('https://images.unsplash.com/photo-1487621167305-5d248087c724?auto=format&fit=crop&w=1920&q=80');
+}
+
+/* Rainy */
+body.bg-rainy {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)),
+    url('https://images.unsplash.com/photo-1519692933481-e162a57d6721?auto=format&fit=crop&w=1920&q=80');
+}
+
+/* Snowy */
+body.bg-snowy {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)),
+    url('https://images.unsplash.com/photo-1491002052546-bf38f186af56?auto=format&fit=crop&w=1920&q=80');
+}
+
+/* Thunderstorm */
+body.bg-thunderstorm {
+  background-image: linear-gradient(to bottom, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
+    url('https://images.unsplash.com/photo-1605727216801-e27ce1d0cc28?auto=format&fit=crop&w=1920&q=80');
+}
